@@ -1,0 +1,216 @@
+package gusanito;
+
+import java.awt.Graphics;
+import java.awt.Image;
+import java.awt.image.ImageObserver;
+import java.awt.image.ImageProducer;
+import javafx.animation.Timeline;
+import javafx.animation.KeyFrame;
+import javafx.application.Application;
+import javafx.collections.ObservableList;
+import javafx.scene.Group;
+import javafx.scene.Node;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.scene.image.*;
+import javafx.scene.layout.Pane;
+import javafx.scene.paint.Color;
+import javafx.scene.paint.ImagePattern;
+import javafx.scene.shape.Rectangle;
+import javafx.stage.Stage;
+import javafx.util.Duration;
+import javafx.fxml.*;
+
+/**
+ *
+ * @author matt
+ */
+public class Principal extends Application {
+    
+    public enum Direccion{
+        UP, DOWN, LEFT, RIGHT
+    }
+    
+    //Estableciendo variables de dimensión del block
+    public static final int BLOCK_SIZE = 40;
+    public static final int APP_W = 20 * BLOCK_SIZE;
+    public static final int APP_H = 15 * BLOCK_SIZE;
+    //creando objeto de Direccion
+    private Direccion direccion = Direccion.RIGHT;
+    
+    //flags para indicar movimientos del gusanito
+    private boolean mover = false;
+    private boolean correr = false;
+    //private ImageView imgV;
+    //Creando objeto de Timeline
+    private final Timeline timeline = new Timeline();
+    
+    private ObservableList<Node> gusano;
+    
+    public Parent crearContenido(){
+        
+        Pane raiz = new Pane(); 
+        raiz.setPrefSize(APP_W, APP_H);
+        
+        Group cuerpoGusano = new Group();        
+        gusano = cuerpoGusano.getChildren();
+        
+        Rectangle comida = new Rectangle(BLOCK_SIZE, BLOCK_SIZE);
+        
+        /*Rectangle comida = new Rectangle(BLOCK_SIZE, BLOCK_SIZE, imgV.getFitHeight(), imgV.getFitWidth());
+        imgV.setClip(comida);*/
+           
+        
+        comida.setFill(Color.BLUEVIOLET);
+        comida.setTranslateX((int)(Math.random()* (APP_W-BLOCK_SIZE)) / BLOCK_SIZE * BLOCK_SIZE);
+        comida.setTranslateY((int)(Math.random()* (APP_H-BLOCK_SIZE)) / BLOCK_SIZE * BLOCK_SIZE);
+        
+        KeyFrame frame = new KeyFrame(Duration.seconds(0.3), event -> {
+            
+            if (!correr) 
+                return;
+            
+            boolean aBorrar = gusano.size() > 1;
+            Node cabeza = aBorrar ? gusano.remove(gusano.size()-1) : gusano.get(0);
+            
+            double cabezaX = cabeza.getTranslateX();
+            double cabezaY = cabeza.getTranslateY();
+            
+            switch (direccion){
+                
+                case UP:
+                    cabeza.setTranslateX(gusano.get(0).getTranslateX());
+                    cabeza.setTranslateY(gusano.get(0).getTranslateY() - BLOCK_SIZE);
+                    break;
+                
+                case DOWN:                    
+                    cabeza.setTranslateX(gusano.get(0).getTranslateX());
+                    cabeza.setTranslateY(gusano.get(0).getTranslateY() + BLOCK_SIZE);
+                    break;
+                    
+                case LEFT:
+                    cabeza.setTranslateX(gusano.get(0).getTranslateX() - BLOCK_SIZE);
+                    cabeza.setTranslateY(gusano.get(0).getTranslateY());
+                    break;
+                    
+                case RIGHT:
+                    cabeza.setTranslateX(gusano.get(0).getTranslateX() + BLOCK_SIZE);
+                    cabeza.setTranslateY(gusano.get(0).getTranslateY());
+                    break;                                                                           
+            }
+            
+            mover = true;
+            
+            if (aBorrar) 
+                gusano.add(0, cabeza);
+            
+            
+            //Identificando choques
+            for (Node rect: gusano) {
+                if (rect != cabeza && cabeza.getTranslateX() == rect.getTranslateX()
+                        && cabeza.getTranslateY() == rect.getTranslateY()) {
+                    reanudarJuego();
+                    break;
+                }
+            }
+            
+            if (cabeza.getTranslateX() < 0 || cabeza.getTranslateX() >= APP_W
+                    || cabeza.getTranslateY() < 0 || cabeza.getTranslateY() >= APP_H) {
+                reanudarJuego();                
+            }
+            
+            if (cabeza.getTranslateX() == comida.getTranslateX()
+                    && cabeza.getTranslateY() == comida.getTranslateY()) {
+                
+                comida.setTranslateX((int)(Math.random() * (APP_W-BLOCK_SIZE)) / BLOCK_SIZE * BLOCK_SIZE);
+                comida.setTranslateY((int)(Math.random() * (APP_H-BLOCK_SIZE)) / BLOCK_SIZE * BLOCK_SIZE);
+                
+                Rectangle rect = new Rectangle(BLOCK_SIZE, BLOCK_SIZE);
+                rect.setTranslateX(cabezaX);
+                rect.setTranslateY(cabezaY);
+                
+                gusano.add(rect);
+            }
+            
+        });
+        
+        timeline.getKeyFrames().add(frame);
+        timeline.setCycleCount(Timeline.INDEFINITE);
+        
+        raiz.getChildren().addAll(comida, cuerpoGusano);
+        
+        return raiz;
+    }
+    
+    private void reanudarJuego(){
+        detenerJuego();
+        iniciarJuego();
+    }
+    
+     private void detenerJuego(){
+        
+        correr = false;
+        timeline.stop();
+        gusano.clear();
+    }
+    
+    private void iniciarJuego(){
+        
+        direccion = Direccion.RIGHT;
+        Rectangle cabeza = new Rectangle(BLOCK_SIZE,BLOCK_SIZE);
+        gusano.add(cabeza);
+        timeline.play();
+        correr = true;
+    }
+    
+    @Override
+    public void start(Stage primaryStage) throws Exception{        
+        
+        Scene scene = new Scene(crearContenido(),  Color.DARKORCHID);
+        scene.setOnKeyPressed(event ->{
+            
+            if (!mover) 
+                return;
+            
+                switch (event.getCode()){
+                    
+                    case UP:
+                        if (direccion != Direccion.DOWN)
+                            direccion = Direccion.UP; 
+                        break;
+                        
+                    case DOWN:
+                        if (direccion != Direccion.UP)
+                            direccion = Direccion.DOWN; 
+                        break;
+                        
+                    case LEFT:
+                        if (direccion != Direccion.RIGHT)
+                            direccion = Direccion.LEFT; 
+                        break;
+                        
+                    case RIGHT:
+                        if (direccion != Direccion.LEFT)
+                            direccion = Direccion.RIGHT; 
+                        break;                        
+                }    
+                
+            mover = false;    
+            
+        });
+        
+        
+        primaryStage.setTitle("Gusanito");
+        primaryStage.setScene(scene);
+        primaryStage.show();
+        iniciarJuego();
+    }
+
+    /**
+     * @param args the command line arguments
+     */
+    public static void main(String[] args) {
+        launch(args);
+    }
+    
+}
